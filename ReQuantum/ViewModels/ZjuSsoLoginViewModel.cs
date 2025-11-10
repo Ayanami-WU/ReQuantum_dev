@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace ReQuantum.ViewModels;
 
-[AutoInject(Lifetime.Transient, RegisterTypes = [typeof(ZjuSsoLoginViewModel)])]
+[AutoInject(Lifetime.Singleton, RegisterTypes = [typeof(ZjuSsoLoginViewModel)])]
 public partial class ZjuSsoLoginViewModel : ViewModelBase<ZjuSsoLoginView>
 {
     private readonly IZjuSsoService _zjuSsoService;

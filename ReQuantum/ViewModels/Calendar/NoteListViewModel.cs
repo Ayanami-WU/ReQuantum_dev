@@ -8,7 +8,7 @@ using System.Collections.ObjectModel;
 
 namespace ReQuantum.ViewModels;
 
-[AutoInject(Lifetime.Transient, RegisterTypes = [typeof(NoteListViewModel)])]
+[AutoInject(Lifetime.Singleton, RegisterTypes = [typeof(NoteListViewModel)])]
 public partial class NoteListViewModel : ViewModelBase<NoteListView>
 {
     private readonly ICalendarService _calendarService;

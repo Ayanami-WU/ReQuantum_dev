@@ -2,6 +2,7 @@ using ReQuantum.Attributes;
 using ReQuantum.Extensions;
 using ReQuantum.Models;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
@@ -51,7 +52,7 @@ public class CalendarService : ICalendarService
     private List<CalendarEvent> _events;
 
     // 日历数据字典 - 全局唯一，每个日期只有一个对象
-    private readonly Dictionary<DateOnly, CalendarDayData> _calendarDataDict = [];
+    private readonly ConcurrentDictionary<DateOnly, CalendarDayData> _calendarDataDict = [];
 
     public CalendarService(IStorage storage)
     {

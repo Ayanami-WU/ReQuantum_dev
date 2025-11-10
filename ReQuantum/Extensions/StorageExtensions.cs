@@ -44,7 +44,7 @@ public static class StorageExtensions
     {
         try
         {
-            value = storage.GetWithEncryption<T>(key);
+            value = storage.Get<T>(key);
             return true;
         }
         catch

@@ -36,7 +36,7 @@
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Stretch"
                     Cursor="Hand"
-                    Command="{Binding Select}">
+                    Command="{Binding SelectCommand}">
               <Button.Styles>
                 <Style Selector="Button:pointerover /template/ ContentPresenter">
                   <Setter Property="Background" Value="#F5F5F5"/>
@@ -120,7 +120,7 @@
                           HorizontalContentAlignment="Stretch"
                           VerticalContentAlignment="Stretch"
                           Cursor="Hand"
-                          Command="{Binding Select}">
+                          Command="{Binding SelectCommand}">
                     <Button.Styles>
                       <!-- 移除悬浮背景色，避免覆盖横线 -->
                       <Style Selector="Button:pointerover">
@@ -228,7 +228,7 @@
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"
                             Cursor="Hand"
-                            Command="{Binding Select}">
+                            Command="{Binding SelectCommand}">
                       <Button.Styles>
                         <Style Selector="Button:pointerover /template/ ContentPresenter">
                           <Setter Property="Background" Value="#F5F5F5"/>
@@ -309,7 +309,7 @@
                                 HorizontalContentAlignment="Stretch"
                                 VerticalContentAlignment="Stretch"
                                 Cursor="Hand"
-                                Command="{Binding Select}">
+                                Command="{Binding SelectCommand}">
                           <Button.Styles>
                             <Style Selector="Button:pointerover">
                               <Setter Property="Opacity" Value="0.8"/>

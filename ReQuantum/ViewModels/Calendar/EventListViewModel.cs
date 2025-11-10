@@ -11,7 +11,7 @@ using System.Collections.ObjectModel;
 
 namespace ReQuantum.ViewModels;
 
-[AutoInject(Lifetime.Transient, RegisterTypes = [typeof(EventListViewModel)])]
+[AutoInject(Lifetime.Singleton, RegisterTypes = [typeof(EventListViewModel)])]
 public partial class EventListViewModel : ViewModelBase<EventListView>
 {
     private readonly ICalendarService _calendarService;

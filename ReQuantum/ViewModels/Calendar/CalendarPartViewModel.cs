@@ -2,12 +2,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ReQuantum.Attributes;
 using ReQuantum.Infrastructure;
-using ReQuantum.Models;
 using ReQuantum.Resources.I18n;
-using ReQuantum.Services;
 using ReQuantum.Views;
 using System;
-using System.Collections.Generic;
 
 namespace ReQuantum.ViewModels;
 
@@ -23,8 +20,6 @@ public enum CalendarViewType
 [AutoInject(Lifetime.Transient, RegisterTypes = [typeof(CalendarPartViewModel)])]
 public partial class CalendarPartViewModel : ViewModelBase<CalendarPartView>
 {
-    private readonly ICalendarService _calendarService;
-
     /// <summary>
     /// 动态年月文本：2025年11月 / 2025/11
     /// </summary>
@@ -33,22 +28,10 @@ public partial class CalendarPartViewModel : ViewModelBase<CalendarPartView>
     #region 视图状态
 
     [ObservableProperty]
-    private CalendarViewType _currentViewType = CalendarViewType.Month;
+    private CalendarViewType _currentViewType;
 
     [ObservableProperty]
     private DateOnly _selectedDate = DateOnly.FromDateTime(DateTime.Now);
-
-    [ObservableProperty]
-    private int _selectedYear = DateTime.Now.Year;
-
-    [ObservableProperty]
-    private int _selectedMonth = DateTime.Now.Month;
-
-    /// <summary>
-    /// 周视图的起始日期（该周的第一天，星期日）
-    /// </summary>
-    [ObservableProperty]
-    private DateOnly _weekStartDate = GetWeekStartDate(DateOnly.FromDateTime(DateTime.Now));
 
     #endregion
 
@@ -62,25 +45,39 @@ public partial class CalendarPartViewModel : ViewModelBase<CalendarPartView>
     /// </summary>
     public WeekCalendarViewModel WeekCalendarViewModel { get; }
 
-    public CalendarPartViewModel(ICalendarService calendarService, MonthCalendarViewModel monthCalendarViewModel, WeekCalendarViewModel weekCalendarViewModel)
+    public event EventHandler<DateOnly>? DateSelected;
+
+    public CalendarPartViewModel(MonthCalendarViewModel monthCalendarViewModel, WeekCalendarViewModel weekCalendarViewModel)
     {
-        _calendarService = calendarService;
         YearMonthText = new LocalizedText(Localizer);
 
         // 初始化日历ViewModels
+        CurrentViewType = CalendarViewType.Month;
         MonthCalendarViewModel = monthCalendarViewModel;
         WeekCalendarViewModel = weekCalendarViewModel;
 
         // 订阅日期选择事件
-        MonthCalendarViewModel.DateSelected += OnCalendarDateSelected;
-        WeekCalendarViewModel.DateSelected += OnCalendarDateSelected;
+        MonthCalendarViewModel.DateSelected += OnMonthCalendarDateSelected;
+        WeekCalendarViewModel.DateSelected += OnWeekCalendarDateSelected;
 
-        UpdateYearMonthText();
+        YearMonthText.Set(nameof(UIText.YearMonthFormat), SelectedDate.Year, SelectedDate.Month);
     }
 
-    private void OnCalendarDateSelected(object? sender, DateOnly date)
+    partial void OnSelectedDateChanged(DateOnly value)
     {
-        SelectDateCommand.Execute(date);
+        DateSelected?.Invoke(this, value);
+    }
+
+    private void OnMonthCalendarDateSelected(object? sender, DateOnly date)
+    {
+        SelectedDate = date;
+        WeekCalendarViewModel.SelectedDate = date;
+    }
+
+    private void OnWeekCalendarDateSelected(object? sender, DateOnly date)
+    {
+        SelectedDate = date;
+        MonthCalendarViewModel.SelectedDate = date;
     }
 
     #region 视图切换
@@ -89,7 +86,8 @@ public partial class CalendarPartViewModel : ViewModelBase<CalendarPartView>
     private void SwitchToWeekView()
     {
         CurrentViewType = CalendarViewType.Week;
-        WeekStartDate = GetWeekStartDate(SelectedDate);
+        YearMonthText.Set(string.Empty);
+        WeekCalendarViewModel.WeekStartDate = GetWeekStartDate(MonthCalendarViewModel.SelectedDate);
     }
 
     [RelayCommand]
@@ -98,16 +96,9 @@ public partial class CalendarPartViewModel : ViewModelBase<CalendarPartView>
         CurrentViewType = CalendarViewType.Month;
     }
 
-
     #endregion
 
     #region 日期导航
-
-    [RelayCommand]
-    private void SelectDate(DateOnly date)
-    {
-        SelectedDate = date;
-    }
 
     /// <summary>
     /// 向前导航（根据当前视图类型）
@@ -118,19 +109,22 @@ public partial class CalendarPartViewModel : ViewModelBase<CalendarPartView>
         switch (CurrentViewType)
         {
             case CalendarViewType.Month:
-                if (SelectedMonth == 1)
+                var month = MonthCalendarViewModel.Month;
+                var year = MonthCalendarViewModel.Year;
+                month--;
+                if (month == 0)
                 {
-                    SelectedYear--;
-                    SelectedMonth = 12;
+                    month = 12;
+                    year--;
                 }
-                else
-                {
-                    SelectedMonth--;
-                }
+                MonthCalendarViewModel.Month = month;
+                MonthCalendarViewModel.Year = year;
+                YearMonthText.Set(nameof(UIText.YearMonthFormat), year, month);
                 break;
             case CalendarViewType.Week:
-                WeekStartDate = WeekStartDate.AddDays(-7);
-                SelectedDate = WeekStartDate;
+                var newWeekStart = WeekCalendarViewModel.WeekStartDate.AddDays(-7);
+                WeekCalendarViewModel.WeekStartDate = newWeekStart;
+                WeekCalendarViewModel.SelectedDate = newWeekStart;
                 break;
         }
     }
@@ -144,19 +138,24 @@ public partial class CalendarPartViewModel : ViewModelBase<CalendarPartView>
         switch (CurrentViewType)
         {
             case CalendarViewType.Month:
-                if (SelectedMonth == 12)
+                var month = MonthCalendarViewModel.Month;
+                var year = MonthCalendarViewModel.Year;
+                month++;
+                if (month == 13)
                 {
-                    SelectedYear++;
-                    SelectedMonth = 1;
+                    month = 1;
+                    year++;
                 }
-                else
-                {
-                    SelectedMonth++;
-                }
+
+                MonthCalendarViewModel.Year = year;
+                MonthCalendarViewModel.Month = month;
+
+                YearMonthText.Set(nameof(UIText.YearMonthFormat), year, month);
                 break;
             case CalendarViewType.Week:
-                WeekStartDate = WeekStartDate.AddDays(7);
-                SelectedDate = WeekStartDate;
+                var newWeekStart = WeekCalendarViewModel.WeekStartDate.AddDays(7);
+                WeekCalendarViewModel.WeekStartDate = newWeekStart;
+                WeekCalendarViewModel.SelectedDate = newWeekStart;
                 break;
         }
     }
@@ -169,61 +168,18 @@ public partial class CalendarPartViewModel : ViewModelBase<CalendarPartView>
     {
         var today = DateOnly.FromDateTime(DateTime.Now);
 
-        // 先更新年月，再更新选中日期，确保日历数据正确加载
-        SelectedYear = today.Year;
-        SelectedMonth = today.Month;
-        WeekStartDate = GetWeekStartDate(today);
-        SelectedDate = today;
+        // 更新子 ViewModel 的年月、周起始日期和选中日期
+        MonthCalendarViewModel.Year = today.Year;
+        MonthCalendarViewModel.Month = today.Month;
+        MonthCalendarViewModel.SelectedDate = today;
 
-        // 强制触发日历更新
-        UpdateCalendarDays();
-    }
+        WeekCalendarViewModel.WeekStartDate = GetWeekStartDate(today);
+        WeekCalendarViewModel.SelectedDate = today;
 
-    partial void OnSelectedYearChanged(int value)
-    {
-        if (value > 0)
+        if (CurrentViewType == CalendarViewType.Month)
         {
-            SelectedDate = new DateOnly(value, SelectedMonth, Math.Min(SelectedDate.Day, DateTime.DaysInMonth(value, SelectedMonth)));
-            UpdateYearMonthText();
-            MonthCalendarViewModel.Year = value;
+            YearMonthText.Set(nameof(UIText.YearMonthFormat), today.Year, today.Month);
         }
-    }
-
-    partial void OnSelectedMonthChanged(int value)
-    {
-        if (value is >= 1 and <= 12)
-        {
-            SelectedDate = new DateOnly(SelectedYear, value, Math.Min(SelectedDate.Day, DateTime.DaysInMonth(SelectedYear, value)));
-            UpdateYearMonthText();
-            MonthCalendarViewModel.Month = value;
-        }
-    }
-
-    partial void OnSelectedDateChanged(DateOnly value)
-    {
-        MonthCalendarViewModel.SelectedDate = value;
-        WeekCalendarViewModel.SelectedDate = value;
-    }
-
-    partial void OnWeekStartDateChanged(DateOnly value)
-    {
-        WeekCalendarViewModel.WeekStartDate = value;
-    }
-
-    private void UpdateYearMonthText()
-    {
-        YearMonthText.Set(nameof(UIText.YearMonthFormat), SelectedYear, SelectedMonth);
-    }
-
-    /// <summary>
-    /// 更新日历显示的天数，并添加事件标记
-    /// </summary>
-    public void UpdateCalendarDays()
-    {
-        // 让日历控件重新生成
-        OnPropertyChanged(nameof(SelectedYear));
-        OnPropertyChanged(nameof(SelectedMonth));
-        OnPropertyChanged(nameof(WeekStartDate));
     }
 
     /// <summary>
@@ -233,27 +189,6 @@ public partial class CalendarPartViewModel : ViewModelBase<CalendarPartView>
     {
         var dayOfWeek = (int)date.DayOfWeek;
         return date.AddDays(-dayOfWeek);
-    }
-
-    #endregion
-
-    #region 辅助方法
-
-    /// <summary>
-    /// 获取指定日期范围内的所有日程（用于日历视图显示）
-    /// </summary>
-    public List<CalendarEvent> GetEventsInRange(DateOnly startDate, DateOnly endDate)
-    {
-        return _calendarService.GetEventsByDateRange(startDate, endDate);
-    }
-
-    /// <summary>
-    /// 获取指定日期范围内的所有待办（用于日历视图显示）
-    /// 只返回截止日期在范围内的待办
-    /// </summary>
-    public List<CalendarTodo> GetTodosInRange(DateOnly startDate, DateOnly endDate)
-    {
-        return _calendarService.GetTodosByDateRange(startDate, endDate);
     }
 
     #endregion

@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace ReQuantum.ViewModels;
 
-[AutoInject(Lifetime.Transient, RegisterTypes = [typeof(TodoListViewModel)])]
+[AutoInject(Lifetime.Singleton, RegisterTypes = [typeof(TodoListViewModel)])]
 public partial class TodoListViewModel : ViewModelBase<TodoListView>
 {
     private readonly ICalendarService _calendarService;

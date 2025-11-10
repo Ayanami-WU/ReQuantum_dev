@@ -2,19 +2,32 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ReQuantum.Attributes;
 using ReQuantum.Controls;
+using ReQuantum.Models;
 using ReQuantum.Services;
 using ReQuantum.Views;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Linq;
 
 namespace ReQuantum.ViewModels;
 
-[AutoInject(Lifetime.Transient, RegisterTypes = [typeof(MonthCalendarViewModel)])]
+[AutoInject(Lifetime.Singleton, RegisterTypes = [typeof(MonthCalendarViewModel)])]
 public partial class MonthCalendarViewModel : ViewModelBase<MonthCalendarView>
 {
     private readonly ICalendarService _calendarService;
+
+    // 静态成员，确保全局唯一
+    private static readonly ConcurrentDictionary<DateOnly, CalendarDay> CalendarDayCache = [];
+    private CalendarDay? _previousSelectedDay;
+
+    public MonthCalendarViewModel(ICalendarService calendarService)
+    {
+        _calendarService = calendarService;
+        UpdateCalendar();
+    }
 
     [ObservableProperty]
     private int _year = DateTime.Now.Year;
@@ -30,14 +43,6 @@ public partial class MonthCalendarViewModel : ViewModelBase<MonthCalendarView>
 
     public event EventHandler<DateOnly>? DateSelected;
 
-    private CalendarDay? _previousSelectedDay;
-
-    public MonthCalendarViewModel(ICalendarService calendarService)
-    {
-        _calendarService = calendarService;
-        UpdateCalendar();
-    }
-
     partial void OnYearChanged(int value)
     {
         UpdateCalendar();
@@ -50,7 +55,32 @@ public partial class MonthCalendarViewModel : ViewModelBase<MonthCalendarView>
 
     partial void OnSelectedDateChanged(DateOnly value)
     {
-        UpdateSelectionState(value);
+        if (_previousSelectedDay is not null)
+        {
+            _previousSelectedDay.IsSelected = false;
+        }
+
+        var current = GetOrCreateCalendarDay(value);
+        _previousSelectedDay = current;
+        current.IsSelected = true;
+    }
+
+    /// <summary>
+    /// 获取或创建 CalendarDay（全局唯一，带缓存）
+    /// </summary>
+    private CalendarDay GetOrCreateCalendarDay(DateOnly date)
+    {
+        if (CalendarDayCache.TryGetValue(date, out var existingDay))
+        {
+            return existingDay;
+        }
+
+        // 创建新的 CalendarDay
+        var dayData = _calendarService.GetCalendarDayData(date);
+        var calendarDay = new CalendarDay(dayData, this);
+
+        CalendarDayCache[date] = calendarDay;
+        return calendarDay;
     }
 
     private void UpdateCalendar()
@@ -58,8 +88,10 @@ public partial class MonthCalendarViewModel : ViewModelBase<MonthCalendarView>
         var days = new List<CalendarDay>();
         var today = DateOnly.FromDateTime(DateTime.Now);
         var firstDay = new DateOnly(Year, Month, 1);
-        var daysInMonth = DateTime.DaysInMonth(Year, Month);
         var firstDayOfWeek = (int)firstDay.DayOfWeek;
+
+        var todayDay = GetOrCreateCalendarDay(today);
+        todayDay.IsToday = true;
 
         // 添加上个月的日期（前置填充）
         if (firstDayOfWeek > 0)
@@ -72,35 +104,22 @@ public partial class MonthCalendarViewModel : ViewModelBase<MonthCalendarView>
             {
                 var day = daysInPrevMonth - i;
                 var date = new DateOnly(prevYear, prevMonth, day);
-                var dayData = _calendarService.GetCalendarDayData(date);
-                
-                days.Add(new CalendarDay
-                {
-                    Date = date,
-                    Day = day,
-                    IsCurrentMonth = false,
-                    IsToday = date == today,
-                    IsSelected = date == SelectedDate,
-                    Items = CalendarItemsHelper.GenerateMonthViewItems(dayData.Todos.ToList(), dayData.Events.ToList()),
-                    ViewModel = this
-                });
+                var calendarDay = GetOrCreateCalendarDay(date);
+                calendarDay.IsCurrentMonth = false;
+                calendarDay.IsSelected = calendarDay.Date == SelectedDate;
+                days.Add(calendarDay);
             }
         }
 
         // 添加本月的日期
-        var monthData = _calendarService.GetMonthCalendarData(Year, Month);
-        foreach (var dayData in monthData)
+        var daysInMonth = DateTime.DaysInMonth(Year, Month);
+        for (var day = 1; day <= daysInMonth; day++)
         {
-            days.Add(new CalendarDay
-            {
-                Date = dayData.Date,
-                Day = dayData.Date.Day,
-                IsCurrentMonth = true,
-                IsToday = dayData.Date == today,
-                IsSelected = dayData.Date == SelectedDate,
-                Items = CalendarItemsHelper.GenerateMonthViewItems(dayData.Todos.ToList(), dayData.Events.ToList()),
-                ViewModel = this
-            });
+            var date = new DateOnly(Year, Month, day);
+            var calendarDay = GetOrCreateCalendarDay(date);
+            calendarDay.IsCurrentMonth = true;
+            calendarDay.IsSelected = calendarDay.Date == SelectedDate;
+            days.Add(calendarDay);
         }
 
         // 添加下个月的日期（后置填充，确保总共42天）
@@ -111,22 +130,13 @@ public partial class MonthCalendarViewModel : ViewModelBase<MonthCalendarView>
         for (var day = 1; day <= remainingDays; day++)
         {
             var date = new DateOnly(nextYear, nextMonth, day);
-            var dayData = _calendarService.GetCalendarDayData(date);
-            
-            days.Add(new CalendarDay
-            {
-                Date = date,
-                Day = day,
-                IsCurrentMonth = false,
-                IsToday = date == today,
-                IsSelected = date == SelectedDate,
-                Items = CalendarItemsHelper.GenerateMonthViewItems(dayData.Todos.ToList(), dayData.Events.ToList()),
-                ViewModel = this
-            });
+            var calendarDay = GetOrCreateCalendarDay(date);
+            calendarDay.IsCurrentMonth = false;
+            calendarDay.IsSelected = calendarDay.Date == SelectedDate;
+            days.Add(calendarDay);
         }
 
         CalendarDays = new ObservableCollection<CalendarDay>(days);
-        _previousSelectedDay = CalendarDays.FirstOrDefault(d => d.IsSelected);
     }
 
     public void SelectDate(DateOnly date)
@@ -134,51 +144,36 @@ public partial class MonthCalendarViewModel : ViewModelBase<MonthCalendarView>
         SelectedDate = date;
         DateSelected?.Invoke(this, date);
     }
-
-    /// <summary>
-    /// 更新指定日期的事项列表
-    /// </summary>
-    public void UpdateDayItems(DateOnly date, List<CalendarDayItem> items)
-    {
-        var day = CalendarDays.FirstOrDefault(d => d.Date == date);
-        if (day != null)
-        {
-            day.Items = items;
-        }
-    }
-
-    /// <summary>
-    /// 刷新日历数据（重新从 Service 获取）
-    /// </summary>
-    public void RefreshCalendarData()
-    {
-        UpdateCalendar();
-    }
-
-    private void UpdateSelectionState(DateOnly newSelectedDate)
-    {
-        // 取消上一个选中的日期
-        if (_previousSelectedDay != null)
-        {
-            _previousSelectedDay.IsSelected = false;
-        }
-
-        // 选中新日期
-        var newSelectedDay = CalendarDays.FirstOrDefault(d => d.Date == newSelectedDate);
-        if (newSelectedDay != null)
-        {
-            newSelectedDay.IsSelected = true;
-            _previousSelectedDay = newSelectedDay;
-        }
-    }
 }
 
 public partial class CalendarDay : ObservableObject
 {
-    public DateOnly Date { get; set; }
-    public int Day { get; set; }
-    public bool IsCurrentMonth { get; set; }
-    public bool IsToday { get; set; }
+    private readonly CalendarDayData _dayData;
+    private readonly MonthCalendarViewModel _viewModel;
+
+    public CalendarDay(CalendarDayData dayData, MonthCalendarViewModel viewModel)
+    {
+        _dayData = dayData;
+        _viewModel = viewModel;
+        Date = dayData.Date;
+        Day = dayData.Date.Day;
+
+        // 监听 CalendarDayData 的 Todos 和 Events 变化
+        _dayData.Todos.CollectionChanged += OnDataCollectionChanged;
+        _dayData.Events.CollectionChanged += OnDataCollectionChanged;
+
+        // 初始化 Items
+        UpdateItems();
+    }
+
+    public DateOnly Date { get; }
+    public int Day { get; }
+
+    [ObservableProperty]
+    private bool _isCurrentMonth;
+
+    [ObservableProperty]
+    private bool _isToday;
 
     [ObservableProperty]
     private bool _isSelected;
@@ -186,8 +181,30 @@ public partial class CalendarDay : ObservableObject
     [ObservableProperty]
     private List<CalendarDayItem> _items = [];
 
-    public MonthCalendarViewModel? ViewModel { get; set; }
+    /// <summary>
+    /// 当数据集合变化时，更新显示的 Items
+    /// </summary>
+    private void OnDataCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        UpdateItems();
+    }
 
-    private RelayCommand? _selectCommand;
-    public RelayCommand Select => _selectCommand ??= new RelayCommand(() => ViewModel?.SelectDate(Date));
+    /// <summary>
+    /// 从 CalendarDayData 生成显示用的 Items
+    /// </summary>
+    private void UpdateItems()
+    {
+        Items = CalendarItemsHelper.GenerateMonthViewItems(
+            _dayData.Todos.ToList(),
+            _dayData.Events.ToList());
+    }
+
+    /// <summary>
+    /// 选中当前日期的命令
+    /// </summary>
+    [RelayCommand]
+    private void Select()
+    {
+        _viewModel.SelectDate(Date);
+    }
 }

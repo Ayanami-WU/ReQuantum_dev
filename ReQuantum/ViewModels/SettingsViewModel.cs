@@ -11,7 +11,7 @@ using System.Linq;
 
 namespace ReQuantum.ViewModels;
 
-[AutoInject(Lifetime.Transient, RegisterTypes = [typeof(SettingsViewModel), typeof(IMenuItemProvider)])]
+[AutoInject(Lifetime.Singleton, RegisterTypes = [typeof(SettingsViewModel), typeof(IMenuItemProvider)])]
 public partial class SettingsViewModel : ViewModelBase<SettingsView>, IMenuItemProvider
 {
     #region MenuItemProvider APIs

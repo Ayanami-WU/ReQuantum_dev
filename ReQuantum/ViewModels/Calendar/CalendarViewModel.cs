@@ -9,7 +9,7 @@ using System;
 
 namespace ReQuantum.ViewModels;
 
-[AutoInject(Lifetime.Transient, RegisterTypes = [typeof(CalendarViewModel), typeof(IMenuItemProvider)])]
+[AutoInject(Lifetime.Singleton, RegisterTypes = [typeof(CalendarViewModel), typeof(IMenuItemProvider)])]
 public partial class CalendarViewModel : ViewModelBase<CalendarView>, IMenuItemProvider
 {
     #region MenuItemProvider APIs
@@ -44,41 +44,10 @@ public partial class CalendarViewModel : ViewModelBase<CalendarView>, IMenuItemP
         NoteListViewModel = noteListViewModel;
 
         // 订阅日历部分的日期变化，同步到其他组件
-        CalendarPartViewModel.PropertyChanged += (s, e) =>
+        CalendarPartViewModel.DateSelected += (s, e) =>
         {
-            if (e.PropertyName == nameof(CalendarPartViewModel.SelectedDate))
-            {
-                var selectedDate = CalendarPartViewModel.SelectedDate;
-                TodoListViewModel.SelectedDate = selectedDate;
-                EventListViewModel.SelectedDate = selectedDate;
-            }
-        };
-        
-        // 订阅待办列表的对话框关闭事件，刷新日历
-        TodoListViewModel.PropertyChanged += (s, e) =>
-        {
-            if (e.PropertyName == nameof(TodoListViewModel.IsAddDialogOpen) && !TodoListViewModel.IsAddDialogOpen)
-            {
-                CalendarPartViewModel.UpdateCalendarDays();
-            }
-        };
-        
-        // 订阅日程列表的对话框关闭事件，刷新日历
-        EventListViewModel.PropertyChanged += (s, e) =>
-        {
-            if (e.PropertyName == nameof(EventListViewModel.IsAddDialogOpen) && !EventListViewModel.IsAddDialogOpen)
-            {
-                CalendarPartViewModel.UpdateCalendarDays();
-            }
-        };
-        
-        // 订阅便签列表的对话框关闭事件，刷新日历
-        NoteListViewModel.PropertyChanged += (s, e) =>
-        {
-            if (e.PropertyName == nameof(NoteListViewModel.IsAddDialogOpen) && !NoteListViewModel.IsAddDialogOpen)
-            {
-                CalendarPartViewModel.UpdateCalendarDays();
-            }
+            TodoListViewModel.SelectedDate = e;
+            EventListViewModel.SelectedDate = e;
         };
     }
 }

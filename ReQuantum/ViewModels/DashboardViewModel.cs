@@ -10,7 +10,7 @@ using System;
 
 namespace ReQuantum.ViewModels;
 
-[AutoInject(Lifetime.Transient, RegisterTypes = [typeof(DashboardViewModel), typeof(IMenuItemProvider)])]
+[AutoInject(Lifetime.Singleton, RegisterTypes = [typeof(DashboardViewModel), typeof(IMenuItemProvider)])]
 public partial class DashboardViewModel : ViewModelBase<DashboardView>, IMenuItemProvider
 {
     #region MenuItemProvider APIs
