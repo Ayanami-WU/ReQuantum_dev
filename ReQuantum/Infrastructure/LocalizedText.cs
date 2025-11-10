@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using ReQuantum.Services;
 using System;
 using System.Globalization;
@@ -35,6 +35,14 @@ public partial class LocalizedText : ObservableObject, IDisposable
     {
         Key = key;
         Arguments = args;
+    }
+
+    /// <summary>
+    /// 手动刷新文本（当参数值变化但引用未变时使用）
+    /// </summary>
+    public void Refresh()
+    {
+        OnPropertyChanged(nameof(Text));
     }
 
     private void OnCultureChanged(CultureInfo cultureInfo)

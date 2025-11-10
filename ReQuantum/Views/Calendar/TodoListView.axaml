@@ -70,9 +70,11 @@
                              TextWrapping="Wrap"
                              FontWeight="Medium"
                              TextDecorations="{Binding IsCompleted, Converter={x:Static viewModels:BoolToStrikethroughConverter.Instance}}"/>
-                    <TextBlock Text="{Binding DueTime, StringFormat='截止: yyyy-MM-dd HH:mm'}" 
-                             FontSize="12"
-                             Opacity="0.7"/>
+                    <TextBlock FontSize="12" Opacity="0.7">
+                      <Run Text="{Binding $parent[UserControl].((viewModels:TodoListViewModel)DataContext).Localizer[DueTime]}"/>
+                      <Run Text=": "/>
+                      <Run Text="{Binding DueTime, StringFormat='yyyy-MM-dd HH:mm'}"/>
+                    </TextBlock>
                   </StackPanel>
                   <Button Grid.Column="2" 
                         Command="{Binding $parent[UserControl].((viewModels:TodoListViewModel)DataContext).DeleteTodoCommand}"

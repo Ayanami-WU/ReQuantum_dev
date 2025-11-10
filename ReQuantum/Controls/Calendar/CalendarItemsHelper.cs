@@ -1,4 +1,6 @@
 using ReQuantum.Models;
+using ReQuantum.Resources.I18n;
+using ReQuantum.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -92,15 +94,13 @@ public static class CalendarItemsHelper
             // 待办只显示截止时间
             return item.StartTime.ToString("HH:mm");
         }
-        else
+
+        // 日程显示开始和结束时间
+        if (item.EndTime.HasValue)
         {
-            // 日程显示开始和结束时间
-            if (item.EndTime.HasValue)
-            {
-                return $"{item.StartTime:HH:mm} - {item.EndTime.Value:HH:mm}";
-            }
-            return item.StartTime.ToString("HH:mm");
+            return $"{item.StartTime:HH:mm} - {item.EndTime.Value:HH:mm}";
         }
+        return item.StartTime.ToString("HH:mm");
     }
 
     /// <summary>
@@ -139,7 +139,7 @@ public static class CalendarItemsHelper
         result.Add(new CalendarDayItem
         {
             IsMore = true,
-            Content = $"还有 {items.Count - 2} 项",
+            Content = SingletonManager.Instance.GetInstance<ILocalizer>()[nameof(UIText.MoreItems), items.Count - 2],
             RemainingCount = items.Count - 2
         });
         return result;

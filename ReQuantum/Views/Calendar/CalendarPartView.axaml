@@ -82,6 +82,7 @@
     <!-- 桌面端：不限制高度 -->
     <controls:WeekCalendarControl IsVisible="{Binding CurrentViewType, Converter={x:Static viewModels:EnumEqualsConverter.Instance}, ConverterParameter=Week}"
                                  WeekStartDate="{Binding WeekStartDate}"
+                                 Classes.desktop="{Binding WindowService.IsDesktopMode}"
                                  r:Relative.MaxHeight="{Binding WindowService.IsDesktopMode, Converter={x:Static controls:CalendarConverters.IsDesktopModeToMaxHeightConverter}}"/>
 
     <!-- 月视图 -->
@@ -91,6 +92,7 @@
                                    Year="{Binding SelectedYear}"
                                    Month="{Binding SelectedMonth}"
                                    SelectedDate="{Binding SelectedDate}"
+                                   Classes.desktop="{Binding WindowService.IsDesktopMode}"
                                    r:Relative.MaxHeight="{Binding WindowService.IsDesktopMode, Converter={x:Static controls:CalendarConverters.IsDesktopModeToMaxHeightConverter}}"/>
 
   </StackPanel>

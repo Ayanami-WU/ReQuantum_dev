@@ -28,10 +28,16 @@ public static class CalendarConverters
             isSelected ? new Thickness(2) : new Thickness(0));
 
     /// <summary>
-    /// 将小时数转换为像素位置（每小时30像素）
+    /// 将小时数转换为像素位置（每小时30像素，移动端）
     /// </summary>
     public static readonly IValueConverter HourToPixelConverter = new FuncValueConverter<double, double>(hour =>
         hour * 30);
+
+    /// <summary>
+    /// 将小时数转换为像素位置（每小时40像素，桌面端）
+    /// </summary>
+    public static readonly IValueConverter HourToPixelDesktopConverter = new FuncValueConverter<double, double>(hour =>
+        hour * 40);
 
     /// <summary>
     /// 生成24小时的集合
