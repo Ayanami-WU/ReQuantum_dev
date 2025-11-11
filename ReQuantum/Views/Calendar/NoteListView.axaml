@@ -6,6 +6,7 @@
              xmlns:models="clr-namespace:ReQuantum.Models"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="400"
              x:Class="ReQuantum.Views.NoteListView"
+             x:Name="Root"
              x:DataType="viewModels:NoteListViewModel">
   <Design.DataContext>
     <viewModels:NoteListViewModel />
@@ -50,10 +51,10 @@
                            FontSize="14"
                            TextWrapping="Wrap"/>
                   <Button Grid.Column="1" 
-                        Command="{Binding $parent[UserControl].((viewModels:NoteListViewModel)DataContext).DeleteNoteCommand}"
+                        Command="{Binding #Root.((viewModels:NoteListViewModel)DataContext).DeleteNoteCommand, FallbackValue={x:Null}}"
                         CommandParameter="{Binding}"
                         Padding="8,4">
-                    <TextBlock Text="{Binding $parent[UserControl].((viewModels:NoteListViewModel)DataContext).Localizer[Delete]}" FontSize="12"/>
+                    <TextBlock Text="{Binding #Root.((viewModels:NoteListViewModel)DataContext).Localizer[Delete], FallbackValue=Delete}" FontSize="12"/>
                   </Button>
                 </Grid>
               </Border>

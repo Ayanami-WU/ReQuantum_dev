@@ -7,6 +7,7 @@
              xmlns:services="clr-namespace:ReQuantum.Services"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="ReQuantum.Shells.ShellView"
+             x:Name="Root"
              x:DataType="shells:ShellViewModel">
   <Design.DataContext>
     <!-- This only sets the DataContext for the previewer in an IDE,
@@ -17,7 +18,7 @@
   <Grid>
     <!-- Landscape Layout: Collapsible side menu (height < width) -->
     <Grid x:Name="LandscapeLayout"
-          IsVisible="{Binding $parent[UserControl].Bounds, Converter={x:Static shells:ShellView.IsLandscapeConverter}}">
+          IsVisible="{Binding #Root.Bounds, Converter={x:Static shells:ShellView.IsLandscapeConverter}}">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto"/>
         <ColumnDefinition Width="*"/>
@@ -74,7 +75,7 @@
                               FontSize="14"
                               VerticalAlignment="Center"
                               TextWrapping="NoWrap"
-                              IsVisible="{Binding $parent[UserControl].DataContext.IsMenuExpanded}"/>
+                              IsVisible="{Binding #Root.((shells:ShellViewModel)DataContext).IsMenuExpanded, FallbackValue=False}"/>
                   </StackPanel>
                 </Border>
               </DataTemplate>
@@ -146,7 +147,7 @@
                           Padding="4"
                           HorizontalAlignment="Stretch"
                           VerticalAlignment="Stretch"
-                          Command="{Binding $parent[UserControl].DataContext.SelectMenuItemCommand}"
+                          Command="{Binding #Root.((shells:ShellViewModel)DataContext).SelectMenuItemCommand, FallbackValue={x:Null}}"
                           CommandParameter="{Binding}">
                     <StackPanel Spacing="2" HorizontalAlignment="Center" VerticalAlignment="Center">
                       <iconPacks:PackIconMaterial Kind="{Binding MenuItem.IconKind}"
@@ -176,7 +177,7 @@
                           Padding="4"
                           HorizontalAlignment="Stretch"
                           VerticalAlignment="Stretch"
-                          Command="{Binding $parent[UserControl].DataContext.SelectMenuItemCommand}"
+                          Command="{Binding #Root.((shells:ShellViewModel)DataContext).SelectMenuItemCommand, FallbackValue={x:Null}}"
                           CommandParameter="{Binding}">
                     <StackPanel Spacing="2" HorizontalAlignment="Center" VerticalAlignment="Center">
                       <iconPacks:PackIconMaterial Kind="{Binding MenuItem.IconKind}"
@@ -206,7 +207,7 @@
                           Padding="4"
                           HorizontalAlignment="Stretch"
                           VerticalAlignment="Stretch"
-                          Command="{Binding $parent[UserControl].DataContext.SelectMenuItemCommand}"
+                          Command="{Binding #Root.((shells:ShellViewModel)DataContext).SelectMenuItemCommand, FallbackValue={x:Null}}"
                           CommandParameter="{Binding}">
                     <StackPanel Spacing="2" HorizontalAlignment="Center" VerticalAlignment="Center">
                       <iconPacks:PackIconMaterial Kind="{Binding MenuItem.IconKind}"
@@ -263,7 +264,7 @@
               <MultiBinding.Converter>
                 <shells:PercentageHeightConverter Percentage="0.5"/>
               </MultiBinding.Converter>
-              <Binding Path="$parent[UserControl].Bounds.Height"/>
+              <Binding Path="#Root.Bounds.Height"/>
             </MultiBinding>
           </Border.Height>
           <Border.Transitions>
@@ -314,7 +315,7 @@
                               Padding="0"
                               HorizontalAlignment="Stretch"
                               VerticalAlignment="Stretch"
-                              Command="{Binding $parent[UserControl].DataContext.SelectMenuItemCommand}"
+                              Command="{Binding #Root.((shells:ShellViewModel)DataContext).SelectMenuItemCommand, FallbackValue={x:Null}}"
                               CommandParameter="{Binding}">
                         <StackPanel Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
                           <iconPacks:PackIconMaterial Kind="{Binding MenuItem.IconKind}"

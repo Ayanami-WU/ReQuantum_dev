@@ -8,6 +8,7 @@
              xmlns:r="https://github.com/metaone01/RelativeControl.Avalonia"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="800"
              x:Class="ReQuantum.Views.CalendarPartView"
+             x:Name="Root"
              x:DataType="viewModels:CalendarPartViewModel">
   <Design.DataContext>
     <viewModels:CalendarPartViewModel />
@@ -81,7 +82,7 @@
     <!-- 周视图 -->
     <!-- 移动端：限制最大高度40vh，允许滚动 -->
     <!-- 桌面端：不限制高度 -->
-    <views:WeekCalendarView IsVisible="{Binding $parent[UserControl].((viewModels:CalendarPartViewModel)DataContext).CurrentViewType, Converter={x:Static viewModels:EnumEqualsConverter.Instance}, ConverterParameter=Week}"
+    <views:WeekCalendarView IsVisible="{Binding #Root.((viewModels:CalendarPartViewModel)DataContext).CurrentViewType, FallbackValue=False, Converter={x:Static viewModels:EnumEqualsConverter.Instance}, ConverterParameter=Week}"
                            DataContext="{Binding WeekCalendarViewModel}"
                            Classes.desktop="{Binding WindowService.IsDesktopMode}"
                            r:Relative.MaxHeight="{Binding WindowService.IsDesktopMode, Converter={x:Static controls:CalendarConverters.IsDesktopModeToMaxHeightConverter}}"/>
@@ -89,7 +90,7 @@
     <!-- 月视图 -->
     <!-- 移动端：限制最大高度40vh，内容自适应 -->
     <!-- 桌面端：不限制高度 -->
-    <views:MonthCalendarView IsVisible="{Binding $parent[UserControl].((viewModels:CalendarPartViewModel)DataContext).CurrentViewType, Converter={x:Static viewModels:EnumEqualsConverter.Instance}, ConverterParameter=Month}"
+    <views:MonthCalendarView IsVisible="{Binding #Root.((viewModels:CalendarPartViewModel)DataContext).CurrentViewType, FallbackValue=False, Converter={x:Static viewModels:EnumEqualsConverter.Instance}, ConverterParameter=Month}"
                             DataContext="{Binding MonthCalendarViewModel}"
                             Classes.desktop="{Binding WindowService.IsDesktopMode}"
                             r:Relative.MaxHeight="{Binding WindowService.IsDesktopMode, Converter={x:Static controls:CalendarConverters.IsDesktopModeToMaxHeightConverter}}"/>

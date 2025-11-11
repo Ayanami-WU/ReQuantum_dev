@@ -6,6 +6,7 @@
              xmlns:models="clr-namespace:ReQuantum.Models"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="400"
              x:Class="ReQuantum.Views.EventListView"
+             x:Name="Root"
              x:DataType="viewModels:EventListViewModel">
   <Design.DataContext>
     <viewModels:EventListViewModel />
@@ -56,11 +57,11 @@
                     </TextBlock>
                   </StackPanel>
                   <Button Grid.Column="1" 
-                        Command="{Binding $parent[UserControl].((viewModels:EventListViewModel)DataContext).DeleteEventCommand}"
+                        Command="{Binding #Root.((viewModels:EventListViewModel)DataContext).DeleteEventCommand, FallbackValue={x:Null}}"
                         CommandParameter="{Binding}"
                         Padding="8,4"
                         VerticalAlignment="Top">
-                    <TextBlock Text="{Binding $parent[UserControl].((viewModels:EventListViewModel)DataContext).Localizer[Delete]}" FontSize="12"/>
+                    <TextBlock Text="{Binding #Root.((viewModels:EventListViewModel)DataContext).Localizer[Delete], FallbackValue=Delete}" FontSize="12"/>
                   </Button>
                 </Grid>
               </Border>

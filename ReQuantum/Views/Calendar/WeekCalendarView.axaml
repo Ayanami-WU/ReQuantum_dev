@@ -6,6 +6,7 @@
              xmlns:controls="clr-namespace:ReQuantum.Controls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="ReQuantum.Views.WeekCalendarView"
+             x:Name="Root"
              x:DataType="viewModels:WeekCalendarViewModel">
   <Design.DataContext>
     <viewModels:WeekCalendarViewModel />
@@ -110,7 +111,8 @@
               
               <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="viewModels:WeekDay">
-                  <Button Background="Transparent"
+                  <Button x:Name="WeekDayButton"
+                          Background="Transparent"
                           BorderThickness="1,0,0,0"
                           BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
                           Padding="4"
@@ -143,7 +145,8 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate DataType="viewModels:WeekTimelineItem">
-                        <Grid Width="{Binding $parent[Button].Bounds.Width}">
+                        <Grid x:Name="WeekTimelineItemGrid"
+                              Width="{Binding #WeekDayButton.Bounds.Width}">
                           <!-- 待办事项（红色区块，宽度95%，居左）-->
                           <Border IsVisible="{Binding IsTodo}"
                                   Background="#FFCDD2"
@@ -152,7 +155,7 @@
                                   CornerRadius="0"
                                   Height="{Binding Height, Converter={x:Static controls:CalendarConverters.HourToPixelConverter}}"
                                   HorizontalAlignment="Left"
-                                  Width="{Binding $parent[Grid].Bounds.Width, Converter={x:Static controls:CalendarConverters.WidthTo95PercentConverter}}">
+                                  Width="{Binding #WeekTimelineItemGrid.Bounds.Width, Converter={x:Static controls:CalendarConverters.WidthTo95PercentConverter}}">
                             <Border.RenderTransform>
                               <TranslateTransform Y="{Binding TopPosition, Converter={x:Static controls:CalendarConverters.HourToPixelConverter}}"/>
                             </Border.RenderTransform>
@@ -171,7 +174,7 @@
                                   BorderThickness="0,3,0,0"
                                   CornerRadius="0"
                                   HorizontalAlignment="Left"
-                                  Width="{Binding $parent[Grid].Bounds.Width, Converter={x:Static controls:CalendarConverters.WidthTo95PercentConverter}}"
+                                  Width="{Binding #WeekTimelineItemGrid.Bounds.Width, Converter={x:Static controls:CalendarConverters.WidthTo95PercentConverter}}"
                                   Height="{Binding Height, Converter={x:Static controls:CalendarConverters.HourToPixelConverter}}">
                             <Border.RenderTransform>
                               <TranslateTransform Y="{Binding TopPosition, Converter={x:Static controls:CalendarConverters.HourToPixelConverter}}"/>
@@ -296,7 +299,8 @@
                     
                     <ItemsControl.ItemTemplate>
                       <DataTemplate DataType="viewModels:WeekDay">
-                        <Button Background="Transparent"
+                        <Button x:Name="WeekDayButton"
+                                Background="Transparent"
                                 BorderThickness="1,0,0,0"
                                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
                                 Padding="4"
@@ -327,7 +331,8 @@
                           </ItemsControl.ItemsPanel>
                           <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="viewModels:WeekTimelineItem">
-                              <Grid Width="{Binding $parent[Button].Bounds.Width}">
+                              <Grid x:Name="WeekTimelineItemGrid"
+                                    Width="{Binding #WeekDayButton.Bounds.Width}">
                                 <!-- 待办事项 -->
                                 <Border IsVisible="{Binding IsTodo}"
                                         Background="#FFCDD2"
@@ -336,7 +341,7 @@
                                         CornerRadius="0"
                                         Height="{Binding Height, Converter={x:Static controls:CalendarConverters.HourToPixelDesktopConverter}}"
                                         HorizontalAlignment="Left"
-                                        Width="{Binding $parent[Grid].Bounds.Width, Converter={x:Static controls:CalendarConverters.WidthTo95PercentConverter}}">
+                                        Width="{Binding #WeekDayButton.Bounds.Width, Converter={x:Static controls:CalendarConverters.WidthTo95PercentConverter}}">
                                   <Border.RenderTransform>
                                     <TranslateTransform Y="{Binding TopPosition, Converter={x:Static controls:CalendarConverters.HourToPixelDesktopConverter}}"/>
                                   </Border.RenderTransform>
@@ -355,7 +360,7 @@
                                         BorderThickness="0,3,0,0"
                                         CornerRadius="0"
                                         HorizontalAlignment="Left"
-                                        Width="{Binding $parent[Grid].Bounds.Width, Converter={x:Static controls:CalendarConverters.WidthTo95PercentConverter}}"
+                                        Width="{Binding #WeekTimelineItemGrid.Bounds.Width, Converter={x:Static controls:CalendarConverters.WidthTo95PercentConverter}}"
                                         Height="{Binding Height, Converter={x:Static controls:CalendarConverters.HourToPixelDesktopConverter}}">
                                   <Border.RenderTransform>
                                     <TranslateTransform Y="{Binding TopPosition, Converter={x:Static controls:CalendarConverters.HourToPixelDesktopConverter}}"/>
