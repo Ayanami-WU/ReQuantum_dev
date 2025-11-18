@@ -13,7 +13,11 @@ namespace ReQuantum;
 [JsonSerializable(typeof(List<CalendarTodo>))]
 [JsonSerializable(typeof(List<CalendarEvent>))]
 [JsonSerializable(typeof(CoursesZjuTodosResponse))]
+[JsonSerializable(typeof(CoursesZjuTodoDto))]
 [JsonSerializable(typeof(CoursesZjuState))]
 [JsonSerializable(typeof(ZdbkSectionScheduleResponse))]
 [JsonSerializable(typeof(ZdbkState))]
-public partial class SourceGenerationContext : JsonSerializerContext;public partial class SourceGenerationContext : JsonSerializerContext;
+[JsonSerializable(typeof(AcademicCalendar))]
+[JsonSerializable(typeof(AcademicCalendarResponse))]
+[JsonSerializable(typeof(CourseAdjustment))]
+public partial class SourceGenerationContext : JsonSerializerContext;

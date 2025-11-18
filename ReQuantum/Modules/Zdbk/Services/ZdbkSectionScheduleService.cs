@@ -1,4 +1,4 @@
-ï»¿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using ReQuantum.Attributes;
 using ReQuantum.Infrastructure.Abstractions;
 using ReQuantum.Infrastructure.Models;
@@ -18,16 +18,7 @@ namespace ReQuantum.Modules.Zdbk.Services;
 
 public interface IZdbkSectionScheduleService
 {
-    /// <summary>
-    /// è·å–è¯¾ç¨‹è¡¨åŸå§‹æ•°æ®
-    /// </summary>
-    /// <param name="academicYear">å­¦å¹´ï¼Œå¦‚ "2025-2026"</param>
-    /// <param name="semester">å­¦æœŸï¼Œå¦‚ "ç§‹"ã€"å†¬"ã€"æ˜¥"ã€"å¤"</param>
     Task<Result<ZdbkSectionScheduleResponse>> GetCourseScheduleAsync(string academicYear, string semester);
-
-    /// <summary>
-    /// è·å–å½“å‰å­¦æœŸçš„è¯¾ç¨‹è¡¨
-    /// </summary>
     Task<Result<ZdbkSectionScheduleResponse>> GetCurrentSemesterScheduleAsync();
 }
 
@@ -35,6 +26,7 @@ public interface IZdbkSectionScheduleService
 public class ZdbkSectionScheduleService : IZdbkSectionScheduleService, IDaemonService
 {
     private readonly IZjuSsoService _zjuSsoService;
+    private readonly IAcademicCalendarService _calendarService;
     private readonly IStorage _storage;
     private readonly ILogger<ZdbkSectionScheduleService> _logger;
     private ZdbkState? _state;
@@ -47,10 +39,12 @@ public class ZdbkSectionScheduleService : IZdbkSectionScheduleService, IDaemonSe
 
     public ZdbkSectionScheduleService(
         IZjuSsoService zjuSsoService,
+        IAcademicCalendarService calendarService,
         IStorage storage,
         ILogger<ZdbkSectionScheduleService> logger)
     {
         _zjuSsoService = zjuSsoService;
+        _calendarService = calendarService;
         _storage = storage;
         _logger = logger;
         _zjuSsoService.OnLogout += () => _state = null;
@@ -59,109 +53,148 @@ public class ZdbkSectionScheduleService : IZdbkSectionScheduleService, IDaemonSe
 
     public async Task<Result<ZdbkSectionScheduleResponse>> GetCurrentSemesterScheduleAsync()
     {
-        var now = DateTime.Now;
-        var (academicYear, semester) = GetCurrentSemester(now);
+        _logger.LogInformation("Fetching current semester and related sub-semesters");
 
-        _logger.LogInformation("Fetching current semester schedule: {AcademicYear} {Semester}", academicYear, semester);
+        try
+        {
+            var calendarResult = await _calendarService.GetCurrentCalendarAsync();
+            if (!calendarResult.IsSuccess)
+            {
+                return Result.Fail($"ÎŞ·¨»ñÈ¡Ğ£Àú£º{calendarResult.Message}");
+            }
 
-        return await GetCourseScheduleAsync(academicYear, semester);
+            var calendar = calendarResult.Value;
+            var currentDate = DateOnly.FromDateTime(DateTime.Now);
+            var weekNumber = calendar.GetWeekNumber(currentDate);
+
+            if (weekNumber == null)
+            {
+                return Result.Fail("µ±Ç°ÈÕÆÚ²»ÔÚÑ§ÆÚ·¶Î§ÄÚ");
+            }
+
+            var currentSemester = calendar.GetSemesterNameForWeek(weekNumber.Value);
+            var currentYear = calendar.AcademicYear;
+            var (semester1, semester2) = GetRelatedSemesters(currentSemester);
+
+            _logger.LogInformation("Fetching {Year} {S1} and {S2}", currentYear, semester1, semester2);
+
+            // ²¢ĞĞ»ñÈ¡Á½¸öÑ§ÆÚµÄ¿Î³Ì
+            var task1 = GetCourseScheduleAsync(currentYear, semester1);
+            var task2 = GetCourseScheduleAsync(currentYear, semester2);
+            await Task.WhenAll(task1, task2);
+
+            var result1 = await task1;
+            var result2 = await task2;
+            var combinedSections = new List<ZdbkSectionDto>();
+
+            if (result1.IsSuccess) combinedSections.AddRange(result1.Value.SectionList);
+            if (result2.IsSuccess) combinedSections.AddRange(result2.Value.SectionList);
+
+            if (combinedSections.Count == 0)
+            {
+                return Result.Fail("ËùÓĞÑ§ÆÚ¾ùÎŞ·¨»ñÈ¡");
+            }
+
+            // ·µ»ØºÏ²¢µÄ½á¹û£¬µ«±£ÁôÁ½¸öÑ§ÆÚµÄĞÅÏ¢
+            return Result.Success(new ZdbkSectionScheduleResponse
+            {
+                SectionList = combinedSections,
+                AcademicYear = currentYear,
+                Semester = currentSemester, // µ±Ç°Ñ§ÆÚ
+                RelatedSemesters = new[] { semester1, semester2 }, // ĞÂÔö£º±£´æÁ½¸öÑ§ÆÚÃû³Æ
+                StudentId = result1.IsSuccess ? result1.Value.StudentId : result2.Value?.StudentId,
+                StudentName = result1.IsSuccess ? result1.Value.StudentName : result2.Value?.StudentName,
+                AdministrativeClass = result1.IsSuccess ? result1.Value.AdministrativeClass : result2.Value?.AdministrativeClass,
+                College = result1.IsSuccess ? result1.Value.College : result2.Value?.College,
+                Major = result1.IsSuccess ? result1.Value.Major : result2.Value?.Major
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching schedules");
+            return Result.Fail($"»ñÈ¡¿Î³Ì±íÊ§°Ü£º{ex.Message}");
+        }
+    }
+
+    private static (string, string) GetRelatedSemesters(string currentSemester)
+    {
+        return currentSemester switch
+        {
+            "Çï" or "¶¬" => ("Çï", "¶¬"),
+            "´º" or "ÏÄ" => ("´º", "ÏÄ"),
+            _ => ("Çï", "¶¬")
+        };
     }
 
     public async Task<Result<ZdbkSectionScheduleResponse>> GetCourseScheduleAsync(string academicYear, string semester)
     {
         var clientResult = await GetAuthenticatedClient();
-        if (!clientResult.IsSuccess)
-        {
-            return Result.Fail(clientResult.Message);
-        }
+        if (!clientResult.IsSuccess) return Result.Fail(clientResult.Message);
 
         var client = clientResult.Value;
-
         if (!_zjuSsoService.IsAuthenticated || string.IsNullOrEmpty(_zjuSsoService.Id))
         {
-            return Result.Fail("æœªè·å–åˆ°å­¦å·ä¿¡æ¯");
+            return Result.Fail("Î´»ñÈ¡µ½Ñ§ºÅĞÅÏ¢");
         }
-
-        var studentId = _zjuSsoService.Id;
 
         try
         {
             var semesterCode = MapSemesterToCode(semester);
-            var apiUrl = $"{CourseScheduleApiBase}?gnmkdm=N253508&su={studentId}";
-
+            var apiUrl = $"{CourseScheduleApiBase}?gnmkdm=N253508&su={_zjuSsoService.Id}";
             var formData = new Dictionary<string, string>
             {
                 { "xnm", academicYear },
-                { "xqm", $"{semesterCode}|{semester}" },
+                { "xqm", $"{semesterCode}|{semester}" }
             };
 
             var content = new FormUrlEncodedContent(formData);
-
             content.Headers.ContentType?.CharSet = "utf-8";
 
-            _logger.LogDebug(
-                "Requesting course schedule with URL: {Url}, FormData: xnm={Xnm}, xqm={Xqm}, xqmmc={Xqmmc}",
-                apiUrl, academicYear, $"{semesterCode}|{semester}", semester);
+            _logger.LogInformation("Requesting {Semester} courses with xqm={XqmValue}", semester, $"{semesterCode}|{semester}");
 
             var response = await client.PostAsync(apiUrl, content);
-            var str = await response.Content.ReadAsStringAsync();
-
             if (!response.IsSuccessStatusCode)
             {
                 _state = null;
-                _logger.LogWarning("Failed to fetch course schedule: {StatusCode}", response.StatusCode);
-                return Result.Fail($"è·å–è¯¾ç¨‹è¡¨å¤±è´¥: {response.StatusCode}");
+                return Result.Fail($"»ñÈ¡¿Î³Ì±íÊ§°Ü: {response.StatusCode}");
             }
 
-            var scheduleResponse = await response.Content.ReadFromJsonAsync(SourceGenerationContext.Default.ZdbkSectionScheduleResponse);
+            var scheduleResponse = await response.Content.ReadFromJsonAsync(
+                SourceGenerationContext.Default.ZdbkSectionScheduleResponse);
 
             if (scheduleResponse is null)
             {
-                _logger.LogError("Failed to parse course schedule response");
-                return Result.Fail("è§£æè¯¾ç¨‹è¡¨æ•°æ®å¤±è´¥");
+                return Result.Fail("½âÎö¿Î³Ì±íÊı¾İÊ§°Ü");
             }
 
-            _logger.LogInformation("Successfully fetched course schedule with {Count} sections",
-                scheduleResponse.SectionList.Count);
+            // Ìí¼ÓÈÕÖ¾£ºÏÔÊ¾·µ»ØµÄ¿Î³ÌµÄTerm×Ö¶Î
+            _logger.LogInformation("Received {Count} courses for {Semester}, first course Term: {FirstTerm}",
+                scheduleResponse.SectionList.Count,
+                semester,
+                scheduleResponse.SectionList.FirstOrDefault()?.Term ?? "N/A");
 
             return Result.Success(scheduleResponse);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An error occurred when getting course schedule from zdbk.zju.edu.cn");
-            return Result.Fail($"è·å–è¯¾ç¨‹è¡¨å¤±è´¥ï¼š{ex.Message}");
+            _logger.LogError(ex, "Error getting schedule");
+            return Result.Fail($"»ñÈ¡¿Î³Ì±íÊ§°Ü£º{ex.Message}");
         }
     }
 
     private async Task<Result<RequestClient>> GetAuthenticatedClient()
     {
-        // å¦‚æœå·²æœ‰ç¼“å­˜çš„ Cookieï¼Œç›´æ¥ä½¿ç”¨
-        if (_state is not null)
-        {
-            _logger.LogDebug("Using cached session cookie");
-            return Result.Success(RequestClient.Create(new RequestOptions
-            {
-                Cookies = [_state.SessionCookie, _state.RouteCookie]
-            }));
-        }
+        var clientResult = await _zjuSsoService.GetAuthenticatedClientAsync(
+            new RequestOptions { AllowRedirects = true });
 
-        // é€šè¿‡ SSO è®¤è¯è·å–æ–° Cookie
-        var clientResult = await _zjuSsoService.GetAuthenticatedClientAsync(new RequestOptions { AllowRedirects = true });
-
-        if (!clientResult.IsSuccess)
-        {
-            _logger.LogWarning("Failed to get authenticated client: {Message}", clientResult.Message);
-            return Result.Fail(clientResult.Message);
-        }
-
-        var client = clientResult.Value;
+        if (!clientResult.IsSuccess) return Result.Fail(clientResult.Message);
 
         try
         {
+            var client = clientResult.Value;
             var ssoUrl = $"{SsoLoginUrl}?service={Uri.EscapeDataString($"{BaseUrl}{SsoRedirectUrl}")}";
-            _logger.LogDebug("Accessing SSO login URL: {SsoUrl}", ssoUrl);
-
             await client.GetAsync(ssoUrl);
+
             var allCookies = client.CookieContainer.GetAllCookies();
             var sessionCookie = allCookies.Last(ck => ck is { Name: "JSESSIONID", Domain: "zdbk.zju.edu.cn" });
             var route = allCookies.Last(ck => ck is { Name: "route" });
@@ -169,134 +202,27 @@ public class ZdbkSectionScheduleService : IZdbkSectionScheduleService, IDaemonSe
             _state = new ZdbkState(sessionCookie, route);
             SaveState();
 
-            _logger.LogInformation("Successfully obtained new session cookie via SSO redirect");
-
-            return Result.Success(RequestClient.Create(new RequestOptions()
-            {
-                Cookies = [sessionCookie, route]
-            }));
+            return Result.Success(RequestClient.Create(new RequestOptions { Cookies = [sessionCookie, route] }));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An error occurred during SSO authentication");
-            return Result.Fail($"SSO è®¤è¯å¤±è´¥ï¼š{ex.Message}");
+            return Result.Fail($"SSOÈÏÖ¤Ê§°Ü£º{ex.Message}");
         }
     }
 
-    private static string MapSemesterToCode(string semester)
+    private static string MapSemesterToCode(string semester) => semester switch
     {
-        return semester switch
-        {
-            "ç§‹" => "1",
-            "å†¬" => "1",
-            "æ˜¥" => "2",
-            "å¤" => "2",
-            _ => throw new ArgumentOutOfRangeException(nameof(semester), semester, null)
-        };
-    }
+        "Çï" or "¶¬" => "1",
+        "´º" or "ÏÄ" => "2",
+        _ => throw new ArgumentOutOfRangeException(nameof(semester))
+    };
 
-    private static (string AcademicYear, string Semester) GetCurrentSemester(DateTime now)
-    {
-        int year = now.Year;
-        int month = now.Month;
-
-        return month switch
-        {
-            >= 9 and <= 11 => ($"{year}-{year + 1}", "ç§‹"),
-            12 => ($"{year}-{year + 1}", "å†¬"),
-            1 => ($"{year - 1}-{year}", "å†¬"),
-            >= 2 and <= 5 => ($"{year - 1}-{year}", "æ˜¥"),
-            _ => ($"{year - 1}-{year}", "å¤")
-        };
-    }
-
-    private void LoadState()
-    {
-        _storage.TryGetWithEncryption(StateKey, out _state);
-    }
+    private void LoadState() => _storage.TryGetWithEncryption(StateKey, out _state);
 
     private void SaveState()
     {
-        if (_state is null)
-        {
-            _storage.Remove(StateKey);
-            return;
-        }
-
-        _storage.SetWithEncryption(StateKey, _state);
-    }
-}
-
-public static class ZdbkSectionExtensions
-{
-    /// <param name="section">è¯¾ç¨‹ä¿¡æ¯</param>
-    extension(ZdbkSectionDto section)
-    {
-        /// <summary>
-        /// å°†è¯¾ç¨‹è¡¨ä¸­çš„è¯¾ç¨‹è½¬æ¢ä¸ºæ—¥å†äº‹ä»¶åˆ—è¡¨
-        /// </summary>
-        /// <param name="semesterStartDate">å­¦æœŸèµ·å§‹æ—¥æœŸ</param>
-        /// <returns>æ—¥å†äº‹ä»¶åˆ—è¡¨</returns>
-        public List<CalendarEvent> ToCalendarEvents(DateOnly semesterStartDate)
-        {
-            var (courseInfo, startTime, endTime) = section.Parse();
-            var events = new List<CalendarEvent>();
-
-            for (var weekNumber = courseInfo.WeekStart; weekNumber <= courseInfo.WeekEnd; weekNumber++)
-            {
-                if (!ShouldHaveCourseInWeek(weekNumber, int.Parse(section.WeekType)))
-                {
-                    continue;
-                }
-
-                var courseDate = CalculateCourseDate(semesterStartDate, weekNumber, int.Parse(section.DayOfWeek));
-                var eventId = $"{section.CourseId}_{weekNumber}_{section.DayOfWeek}_{section.StartSection}".ToGuid();
-
-                var startDateTime = courseDate.ToDateTime(startTime);
-                var endDateTime = courseDate.ToDateTime(endTime);
-
-                events.Add(new CalendarEvent
-                {
-                    Id = eventId,
-                    Content = $"{courseInfo.CourseName}\n{courseInfo.Teacher}\n{courseInfo.Location}",
-                    StartTime = startDateTime,
-                    EndTime = endDateTime,
-                    CreatedAt = DateTime.Now
-                });
-            }
-
-            return events;
-        }
-    }
-
-    /// <summary>
-    /// è½¬æ¢è¯¾ç¨‹è¡¨ä¸ºæ—¥å†äº‹ä»¶
-    /// </summary>
-    public static List<CalendarEvent> ToCalendarEvents(this IEnumerable<ZdbkSectionDto> sections, DateOnly semesterStartDate)
-    {
-        var events = new List<CalendarEvent>();
-        foreach (var section in sections)
-        {
-            events.AddRange(section.ToCalendarEvents(semesterStartDate));
-        }
-        return events;
-    }
-
-    private static bool ShouldHaveCourseInWeek(int weekNumber, int weekType)
-    {
-        return weekType switch
-        {
-            0 => true,
-            1 => weekNumber % 2 == 0,
-            2 => weekNumber % 2 == 1,
-            _ => false
-        };
-    }
-
-    private static DateOnly CalculateCourseDate(DateOnly semesterStartDate, int weekNumber, int dayOfWeek)
-    {
-        var daysToAdd = (weekNumber - 1) * 7 + (dayOfWeek - 1);
-        return semesterStartDate.AddDays(daysToAdd);
+        if (_state is null) _storage.Remove(StateKey);
+        else _storage.SetWithEncryption(StateKey, _state);
     }
 }
 
@@ -311,14 +237,8 @@ public static class CalendarEventExtensions
             get => evt.From == Zdbk;
             set
             {
-                if (evt.From == Zdbk && !value)
-                {
-                    evt.From = string.Empty;
-                }
-                else if (evt.From != Zdbk && value)
-                {
-                    evt.From = Zdbk;
-                }
+                if (evt.From == Zdbk && !value) evt.From = string.Empty;
+                else if (evt.From != Zdbk && value) evt.From = Zdbk;
             }
         }
     }

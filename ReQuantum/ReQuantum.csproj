@@ -12,6 +12,12 @@
   </ItemGroup>
   
   <ItemGroup>
+    <None Include="Data\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  
+  <ItemGroup>
     <AvaloniaXaml Remove="Modules\NewFolder\**" />
     <Compile Remove="Modules\NewFolder\**" />
     <EmbeddedResource Remove="Modules\NewFolder\**" />
@@ -66,9 +72,5 @@
       <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>UIText.Designer.cs</LastGenOutput>
     </EmbeddedResource>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Modules\Zdbk\Examples\" />
   </ItemGroup>
 </Project>

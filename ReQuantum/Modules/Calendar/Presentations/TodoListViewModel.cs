@@ -7,7 +7,6 @@ using ReQuantum.Modules.Calendar.Entities;
 using ReQuantum.Modules.Calendar.Services;
 using ReQuantum.Modules.CoursesZju.Models;
 using ReQuantum.Modules.CoursesZju.Services;
-using ReQuantum.Modules.Zdbk.Services;
 using ReQuantum.Modules.ZjuSso.Services;
 using ReQuantum.Resources.I18n;
 using ReQuantum.Utilities;
@@ -24,7 +23,6 @@ public partial class TodoListViewModel : ViewModelBase<TodoListView>, INotificat
 {
     private readonly ICalendarService _calendarService;
     private readonly ICoursesZjuService _coursesZjuService;
-    private readonly IZdbkSectionScheduleService _zdbkService;
     private readonly IZjuSsoService _zjuSsoService;
 
     #region 数据集合
@@ -101,20 +99,15 @@ public partial class TodoListViewModel : ViewModelBase<TodoListView>, INotificat
     [ObservableProperty]
     private bool _isSyncingCoursesZju;
 
-    [ObservableProperty]
-    private bool _isSyncingZdbk;
-
     #endregion
 
     public TodoListViewModel(
         ICalendarService calendarService,
         ICoursesZjuService coursesZjuService,
-        IZdbkSectionScheduleService zdbkService,
         IZjuSsoService zjuSsoService)
     {
         _calendarService = calendarService;
         _coursesZjuService = coursesZjuService;
-        _zdbkService = zdbkService;
         _zjuSsoService = zjuSsoService;
         LoadTodos();
 
@@ -128,7 +121,6 @@ public partial class TodoListViewModel : ViewModelBase<TodoListView>, INotificat
         _zjuSsoService.OnLogin += () =>
         {
             OnPropertyChanged(nameof(ShowCoursesZjuSyncButton));
-            OnPropertyChanged(nameof(ShowZdbkSyncButton));
             _ = SyncCoursesZjuTodosAsync();
         };
 
@@ -136,7 +128,6 @@ public partial class TodoListViewModel : ViewModelBase<TodoListView>, INotificat
         _zjuSsoService.OnLogout += () =>
         {
             OnPropertyChanged(nameof(ShowCoursesZjuSyncButton));
-            OnPropertyChanged(nameof(ShowZdbkSyncButton));
         };
     }
 
@@ -291,80 +282,6 @@ public partial class TodoListViewModel : ViewModelBase<TodoListView>, INotificat
         finally
         {
             IsSyncingCoursesZju = false;
-        }
-    }
-
-    #endregion
-
-    #region 教务网课程表同步
-
-    /// <summary>
-    /// 是否显示课程表同步按钮
-    /// </summary>
-    public bool ShowZdbkSyncButton => _zjuSsoService.IsAuthenticated;
-
-    /// <summary>
-    /// 同步教务网课程表
-    /// </summary>
-    [RelayCommand]
-    private async Task SyncZdbkScheduleAsync()
-    {
-        if (IsSyncingZdbk)
-        {
-            return;
-        }
-
-        IsSyncingZdbk = true;
-
-        try
-        {
-            // 获取课程表
-            var scheduleResult = await _zdbkService.GetCurrentSemesterScheduleAsync();
-            if (!scheduleResult.IsSuccess)
-            {
-                // 同步失败，可以显示错误消息
-                return;
-            }
-
-            var schedule = scheduleResult.Value;
-
-            // TODO: 这里需要学期起始日期，暂时硬编码
-            // 之后可以从设置中读取或自动计算
-            var semesterStartDate = new DateOnly(2025, 9, 1);
-
-            // 转换为日历事件
-            var newEvents = schedule.SectionList.ToCalendarEvents(semesterStartDate);
-
-            // 标记来源
-            foreach (var evt in newEvents)
-            {
-                evt.IsFromZdbk = true;
-            }
-
-            // 获取已存在的教务网课程
-            var existingZdbkEvents = _calendarService.GetAllEvents()
-                .Where(e => e.IsFromZdbk)
-                .ToList();
-
-            // 找出已经不存在的课程，删除
-            var newEventIds = newEvents.Select(e => e.Id).ToHashSet();
-            foreach (var existingEvent in existingZdbkEvents.Where(e => !newEventIds.Contains(e.Id)))
-            {
-                _calendarService.DeleteEvent(existingEvent.Id);
-            }
-
-            // 添加或更新新的课程
-            foreach (var evt in newEvents)
-            {
-                _calendarService.AddOrUpdateEvent(evt);
-            }
-
-            // 触发刷新：发布当前选中日期的变更通知
-            Dispatcher.Publish(new CalendarSelectedDateChanged(SelectedDate));
-        }
-        finally
-        {
-            IsSyncingZdbk = false;
         }
     }
 

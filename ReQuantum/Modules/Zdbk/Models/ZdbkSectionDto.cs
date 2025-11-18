@@ -43,7 +43,7 @@ public class ZdbkSectionDto
 
     /// <summary>
     /// 单双周标记
-    /// 0 = 每周, 1 = 双周, 2 = 单周
+    /// 0 = 单周, 1 = 双周, 2 = 每周
     /// </summary>
     [JsonPropertyName("dsz")]
     public string WeekType { get; set; }

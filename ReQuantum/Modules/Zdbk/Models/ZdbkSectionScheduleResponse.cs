@@ -27,6 +27,12 @@ public class ZdbkSectionScheduleResponse
     public string? Semester { get; set; }
 
     /// <summary>
+    /// 相关学期（用于本地合并结果，不来自服务器）
+    /// </summary>
+    [JsonIgnore]
+    public string[]? RelatedSemesters { get; set; }
+
+    /// <summary>
     /// 学号
     /// </summary>
     [JsonPropertyName("xh")]
